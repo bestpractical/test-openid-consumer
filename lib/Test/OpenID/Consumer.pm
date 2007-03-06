@@ -147,7 +147,7 @@ sub handle_request {
         # We're dealing with the return path
         
         my $csr = Net::OpenID::Consumer->new(
-            ua    => LWPx::ParanoidAgent->new,
+            ua    => $self->ua,
             cache => Cache::FileCache->new,
             args  => $cgi,
             consumer_secret => 'secret'
@@ -156,7 +156,7 @@ sub handle_request {
         if ( my $setup = $csr->user_setup_url ) {
             print "HTTP/1.0 412 Setup required\r\n";
             print "Content-Type: text/plain\r\n\r\n";
-            print "verification required setup\n";
+            print "verification required setup: $setup\n";
             return;
         }
         elsif ( $csr->user_cancel ) {
