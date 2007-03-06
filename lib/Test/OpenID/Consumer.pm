@@ -74,14 +74,14 @@ it's at.
 
 =head1 METHODS
 
-=head2 verify_openid URL
+=head2 openid_ok URL
 
 Attempts to verify the given OpenID.  At the moment, the verification MUST
 NOT require any logging in or setup, but it may be supported in the future.
 
 =cut
 
-sub verify_openid {
+sub openid_ok {
     my $self   = shift;
     my $openid = shift;
     my $text   = shift;
@@ -90,7 +90,7 @@ sub verify_openid {
 
     my $baseurl = 'http://'
                   . ($self->host || 'localhost')
-                  . ($self->port || '80');
+                  . ':' . ($self->port || '80');
 
     my $csr = Net::OpenID::Consumer->new(
         ua    => $self->ua,
@@ -104,7 +104,7 @@ sub verify_openid {
 
     if ( not defined $claimed ) {
         $Tester->ok( 0, $text );
-        $Tester->diag( "OpenID: '$openid'\n" . $csr->err );
+        $Tester->diag( $csr->err );
         return;
     }
 
@@ -112,10 +112,22 @@ sub verify_openid {
 
     my $check_url = $claimed->check_url(
         return_to  => "$baseurl/return",
-        trust_root => $baseurl
+        trust_root => $baseurl,
+        delayed_return => 0
     );
 
-    $self->ua->get( $check_url );
+    $Tester->diag( 'redirecting to ' . $check_url );
+    my $res = $self->ua->get( $check_url );
+
+    if ( not $res->is_success ) {
+        $Tester->ok( 0, $text );
+        $Tester->diag( "Error:   " . $res->status_line );
+        $Tester->diag( "Content: " . $res->content )
+            if $res->content;
+    }
+    else {
+        $Tester->ok( 1, $text );
+    }
 }
 
 =head1 INTERAL METHODS
@@ -142,25 +154,30 @@ sub handle_request {
         );
 
         if ( my $setup = $csr->user_setup_url ) {
-            $Tester->ok( 0, 'verified OpenID' );
-            $Tester->diag( 'verification required setup' );
+            print "HTTP/1.0 412 Setup required\r\n";
+            print "Content-Type: text/plain\r\n\r\n";
+            print "verification required setup\n";
             return;
         }
         elsif ( $csr->user_cancel ) {
-            $Tester->ok( 0, 'verified OpenID' );
-            $Tester->diag( 'verification canceled' );
+            print "HTTP/1.0 401 Canceled\r\n";
+            print "Content-Type: text/plain\r\n\r\n";
+            print "verification canceled\n";
             return;
         }
 
         my $ident = $csr->verified_identity;
 
         if ( not defined $ident ) {
-            $Tester->ok( 0, 'verified OpenID' );
-            $Tester->diag( 'verification failed: ' . $csr->err );
-            return;
+            print "HTTP/1.0 401 Invalid identity\r\n";
+            print "Content-Type: text/plain\r\n\r\n";
+            print $csr->err, "\n";
         }
-
-        $Tester->ok( 1, 'verified OpenID' );
+        else {
+            print "HTTP/1.0 200 OK\r\n";
+            print "Content-Type: text/plain\r\n\r\n";
+            print "verification succeeded\n";
+        }
     }
     else {
         print "HTTP/1.0 200 OK\r\n";
