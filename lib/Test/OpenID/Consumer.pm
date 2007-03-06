@@ -40,11 +40,31 @@ Create a new test OpenID consumer
 =cut
 
 sub new {
-    my $self = shift;
-    my $port = shift;
+    my $class = shift;
+    my $port  = shift;
 
     $port = int(rand(5000) + 10000) if not defined $port;
-    return $self->SUPER::new( $port );
+    
+    my $self = $class->SUPER::new( $port );
+
+    my $ua = LWPx::ParanoidAgent->new;
+    $ua->whitelisted_hosts( qw/localhost 127.0.0.1/ );
+    $self->ua( $ua );
+
+    return $self;
+}
+
+=head2 ua [OBJECT]
+
+Get/set the useragent to use for fetching pages.  Defaults to an instance of
+L<LWPx::ParanoidAgent> with localhost whitelisted.
+
+=cut
+
+sub ua {
+    my $self = shift;
+    $self->{'ua'} = shift if @_;
+    return $self->{'ua'};
 }
 
 =head2 started_ok
@@ -73,7 +93,7 @@ sub verify_openid {
                   . ($self->port || '80');
 
     my $csr = Net::OpenID::Consumer->new(
-        ua    => LWPx::ParanoidAgent->new,
+        ua    => $self->ua,
         cache => Cache::FileCache->new,
         args  => { },
         consumer_secret => 'secret',
@@ -84,7 +104,7 @@ sub verify_openid {
 
     if ( not defined $claimed ) {
         $Tester->ok( 0, $text );
-        $Tester->diag( "OpenID: '$openid'\nError code: " . $csr->errcode );
+        $Tester->diag( "OpenID: '$openid'\n" . $csr->err );
         return;
     }
 
@@ -95,8 +115,7 @@ sub verify_openid {
         trust_root => $baseurl
     );
 
-    my $ua = LWPx::ParanoidAgent->new;
-    $ua->get( $check_url );
+    $self->ua->get( $check_url );
 }
 
 =head1 INTERAL METHODS
