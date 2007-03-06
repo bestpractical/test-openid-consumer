@@ -116,7 +116,6 @@ sub openid_ok {
         delayed_return => 0
     );
 
-    $Tester->diag( 'redirecting to ' . $check_url );
     my $res = $self->ua->get( $check_url );
 
     if ( not $res->is_success ) {
