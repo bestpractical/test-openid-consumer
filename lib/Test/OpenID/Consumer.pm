@@ -24,7 +24,7 @@ against.  To use it, do something like this:
    my $consumer = Test::OpenID::Consumer->new;
    my $url_root = $consumer->started_ok("server started ok");
 
-   $consumer->verify('http://server/identity/openid');
+   $consumer->verify_ok('http://server/identity/openid');
 
 =cut
 
@@ -56,7 +56,7 @@ sub new {
 
 =head2 ua [OBJECT]
 
-Get/set the useragent to use for fetching pages.  Defaults to an instance of
+Get/set the LWP useragent to use for fetching pages.  Defaults to an instance of
 L<LWPx::ParanoidAgent> with localhost whitelisted.
 
 =cut
@@ -74,19 +74,98 @@ it's at.
 
 =head1 METHODS
 
-=head2 openid_ok URL
+=head2 verify_ok URL [TEST_NAME]
 
 Attempts to verify the given OpenID.  At the moment, the verification MUST
 NOT require any logging in or setup, but it may be supported in the future.
 
 =cut
 
-sub openid_ok {
+sub verify_ok {
+    my $self    = shift;
+    my $openid  = shift;
+    my $text    = shift || 'verified OpenID';
+
+    my ( $failed, $data ) = $self->_verify( $openid );
+
+    if ( $failed ) {
+        $Tester->ok( 0, $text );
+        $self->_diag( $data );
+    }
+    else {
+        $Tester->ok( 1, $text );
+    }
+}
+
+=head2 verify_cancelled URL [TEST_NAME]
+
+Like L<verify_ok>, but the test passes if the OpenID verification process is
+cancelled (i.e. the user chose not to trust the authenticating site).
+
+=cut
+
+sub verify_cancelled {
+    my $self    = shift;
+    my $openid  = shift;
+    my $text    = shift || 'verification cancelled';
+
+    my ( $failed, $data ) = $self->_verify( $openid );
+
+    if ( $failed ) {
+        if ( $failed == 2 && $data->status_line =~ /canceled/i ) {
+            $Tester->ok( 1, $text );
+        }
+        else {
+            $Tester->ok( 0, $text );
+            $self->_diag( $data );
+        }
+    }
+    else {
+        $Tester->ok( 0, $text );
+        $Tester->diag( "successfully verified OpenID" );
+    }
+}
+
+=head2 verify_invalid URL [TEST_NAME]
+
+Like L<verify_ok> but the test passes if the OpenID client is unable to find
+a valid OpenID identity at the URL given.
+
+=cut
+
+sub verify_invalid {
+    my $self    = shift;
+    my $openid  = shift;
+    my $text    = shift || 'invalid OpenID';
+
+    my ( $failed, $data ) = $self->_verify( $openid );
+
+    if ( $failed == 1 ) {
+        $Tester->ok( 1, $text );
+    }
+    else {
+        $Tester->ok( 0, $text );
+        $self->_diag( $data );
+    }
+}
+
+sub _diag {
+    my $self = shift;
+    my $data = shift;
+
+    if ( ref $data ) {
+        $Tester->diag( "Error:   " . $data->status_line );
+        $Tester->diag( "Content: " . $data->content )
+            if $data->content;
+    }
+    else {
+        $Tester->diag( $data );
+    }
+}
+
+sub _verify {
     my $self   = shift;
     my $openid = shift;
-    my $text   = shift;
-
-    $text = 'verified OpenID' if not defined $text;
 
     my $baseurl = 'http://'
                   . ($self->host || 'localhost')
@@ -103,9 +182,7 @@ sub openid_ok {
     my $claimed = $csr->claimed_identity( $openid );
 
     if ( not defined $claimed ) {
-        $Tester->ok( 0, $text );
-        $Tester->diag( $csr->err );
-        return;
+        return ( 1, $csr->err );
     }
 
     $openid = $claimed->claimed_url;
@@ -119,13 +196,10 @@ sub openid_ok {
     my $res = $self->ua->get( $check_url );
 
     if ( not $res->is_success ) {
-        $Tester->ok( 0, $text );
-        $Tester->diag( "Error:   " . $res->status_line );
-        $Tester->diag( "Content: " . $res->content )
-            if $res->content;
+        return ( 2, $res );
     }
     else {
-        $Tester->ok( 1, $text );
+        return ( 0, undef );
     }
 }
 
@@ -168,7 +242,7 @@ sub handle_request {
         my $ident = $csr->verified_identity;
 
         if ( not defined $ident ) {
-            print "HTTP/1.0 401 Invalid identity\r\n";
+            print "HTTP/1.0 401 Failed authentication\r\n";
             print "Content-Type: text/plain\r\n\r\n";
             print $csr->err, "\n";
         }
