@@ -5,6 +5,7 @@ use warnings;
 name('Test-OpenID-Consumer');
 license('Perl');
 version_from('lib/Test/OpenID/Consumer.pm');
+readme_from('lib/Test/OpenID/Consumer.pm', { format => 'md' });
 author('Thomas Sibley <trs@bestpractical.com>');
 requires('Net::OpenID::Consumer');
 requires('Test::HTTP::Server::Simple');
