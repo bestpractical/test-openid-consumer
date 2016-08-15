@@ -9,7 +9,7 @@ author('Thomas Sibley <trs@bestpractical.com>');
 requires('Net::OpenID::Consumer');
 requires('Test::HTTP::Server::Simple');
 requires('HTTP::Server::Simple');
-requires('LWPx::ParanoidAgent');
+requires('LWP::UserAgent::Paranoid');
 requires('Cache::FileCache');
 requires('Test::Builder');
 auto_install();

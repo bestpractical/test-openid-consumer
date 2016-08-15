@@ -4,7 +4,7 @@ use strict;
 
 package Test::OpenID::Consumer;
 use Net::OpenID::Consumer;
-use LWPx::ParanoidAgent;
+use LWP::UserAgent::Paranoid;
 use Cache::FileCache;
 use base qw/Test::HTTP::Server::Simple HTTP::Server::Simple::CGI/;
 
@@ -47,7 +47,7 @@ sub new {
     
     my $self = $class->SUPER::new( $port );
 
-    my $ua = LWPx::ParanoidAgent->new;
+    my $ua = LWP::UserAgent::Paranoid->new;
     $ua->whitelisted_hosts( qw/localhost 127.0.0.1/ );
     $self->ua( $ua );
 
@@ -57,7 +57,7 @@ sub new {
 =head2 ua [OBJECT]
 
 Get/set the LWP useragent to use for fetching pages.  Defaults to an instance of
-L<LWPx::ParanoidAgent> with localhost whitelisted.
+L<LWP::UserAgent::Paranoid> with localhost whitelisted.
 
 =cut
 
