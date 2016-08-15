@@ -1,0 +1,6 @@
+0.02
+    Switch to LWP::UserAgent::Paranoid for cleaner internals and better
+    future-proofing
+
+0.01
+    First release
