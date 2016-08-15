@@ -8,7 +8,7 @@ use LWP::UserAgent::Paranoid;
 use Cache::FileCache;
 use base qw/Test::HTTP::Server::Simple HTTP::Server::Simple::CGI/;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 =head1 NAME
 
